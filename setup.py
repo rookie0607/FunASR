@@ -76,7 +76,7 @@ requirements = {
         # "gtn==0.0.0",
     ],
     "setup": [
-        "numpy<=1.21.3",
+        "numpy<1.19.0,>=1.16.0",
         "pytest-runner",
     ],
     "test": [
