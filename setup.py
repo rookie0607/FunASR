@@ -25,6 +25,7 @@ requirements = {
         "kaldiio>=2.17.0",
         "torch_complex",
         "nltk>=3.4.5",
+        "numpy<1.19.0,>=1.16.0",
         # ASR
         "sentencepiece",
         # "ctc-segmentation<1.8,>=1.6.6",
