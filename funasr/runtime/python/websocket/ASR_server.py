@@ -155,16 +155,22 @@ async def ws_serve(websocket, path):
             speech_start_i, speech_end_i = vad(message, websocket)
             #print(speech_start_i, speech_end_i)
             if speech_start_i:
+                RECORD_NUM += 1
                 speech_start = speech_start_i
                 frames = []
                 frames.extend(buffer)  # 把之前2个语音数据快加入
                 frames_online = []
+                frames_online.append(message)
+                # frames_online.extend(buffer)
+                # RECORD_NUM += 1
+                websocket.param_dict_asr_online["is_final"] = False
             if speech_end_i or RECORD_NUM > 300:
                 speech_start = False
                 audio_in = b"".join(frames)
                 websocket.speek.put(audio_in)
                 frames = []  # 清空所有的帧数据
                 frames_online = []
+                websocket.param_dict_asr_online["is_final"] = True
                 buffer = []  # 清空缓存中的帧数据（最多两个片段）
                 RECORD_NUM = 0
             if not websocket.send_msg.empty():
