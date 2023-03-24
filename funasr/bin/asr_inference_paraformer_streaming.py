@@ -666,8 +666,8 @@ def inference_modelscope(
                 
                 if len(results) >= 1:
                     asr_result += results[0][0]
-            if wait:
-                asr_result = "-"
+            # if wait:
+            #     asr_result = "-"
             item = {'key': "utt", 'value': asr_result}
             asr_result_list.append(item)
         else:
