@@ -86,11 +86,15 @@ class ModelExporter:
         json_file = os.path.join(model_dir, 'configuration.json')
         punc_train_config = os.path.join(model_dir, 'config.yaml')
         punc_model_file = os.path.join(model_dir, 'punc.pb')
+
         if mode is None:
             import json
             with open(json_file, 'r') as f:
                 config_data = json.load(f)
-                mode = config_data['model']['model_config']['mode']
+                if config_data['task'] == "punctuation":
+                    mode = config_data['model']['model_config']['mode']
+                else:
+                    mode = config_data['model']['punc_model_config']['mode']
         if mode.startswith('paraformer'):
             from funasr.tasks.asr import ASRTaskParaformer as ASRTask
             model, asr_train_args = ASRTask.build_model_from_file(
