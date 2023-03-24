@@ -14,7 +14,7 @@ import random
 # torch_version = float(".".join(torch.__version__.split(".")[:2]))
 # assert torch_version > 1.9
 
-class ASRModelExportParaformer:
+class ModelExporter:
     def __init__(self, cache_dir: Union[Path, str] = None, onnx: bool = True):
         assert check_argument_types()
         self.set_all_random_seed(0)
@@ -70,6 +70,7 @@ class ASRModelExportParaformer:
         random.seed(seed)
         np.random.seed(seed)
         torch.random.manual_seed(seed)
+
     def export(self,
                tag_name: str = 'damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch',
                mode: str = 'paraformer',
@@ -83,6 +84,8 @@ class ASRModelExportParaformer:
         asr_model_file = os.path.join(model_dir, 'model.pb')
         cmvn_file = os.path.join(model_dir, 'am.mvn')
         json_file = os.path.join(model_dir, 'configuration.json')
+        punc_train_config = os.path.join(model_dir, 'config.yaml')
+        punc_model_file = os.path.join(model_dir, 'punc.pb')
         if mode is None:
             import json
             with open(json_file, 'r') as f:
@@ -90,12 +93,21 @@ class ASRModelExportParaformer:
                 mode = config_data['model']['model_config']['mode']
         if mode.startswith('paraformer'):
             from funasr.tasks.asr import ASRTaskParaformer as ASRTask
+            model, asr_train_args = ASRTask.build_model_from_file(
+                asr_train_config, asr_model_file, cmvn_file, 'cpu'
+            )
         elif mode.startswith('uniasr'):
             from funasr.tasks.asr import ASRTaskUniASR as ASRTask
+            model, asr_train_args = ASRTask.build_model_from_file(
+                asr_train_config, asr_model_file, cmvn_file, 'cpu'
+            )
+        elif mode.startswith('punc'):
+            from funasr.tasks.punctuation import PunctuationTask as PUNCTask
+            model, punc_train_args = PUNCTask.build_model_from_file(
+                punc_train_config, punc_model_file, 'cpu'
+            )
             
-        model, asr_train_args = ASRTask.build_model_from_file(
-            asr_train_config, asr_model_file, cmvn_file, 'cpu'
-        )
+
         self._export(model, tag_name)
             
 
@@ -130,6 +142,6 @@ if __name__ == '__main__':
     onnx = onnx == 'true'
     # model_path = 'damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch'
     # output_dir = "../export"
-    export_model = ASRModelExportParaformer(cache_dir=output_dir, onnx=onnx)
+    export_model = ModelExporter(cache_dir=output_dir, onnx=onnx)
     export_model.export(model_path)
     # export_model.export('/root/cache/export/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch')
