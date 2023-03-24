@@ -222,8 +222,8 @@ def asr_online(websocket):  # ASR推理
                 rec_result = inference_pipeline_asr_online(audio_in=audio_in, param_dict=websocket.param_dict_asr_online)
 
                 # print(rec_result)
-                if "text" in rec_result and rec_result["text"] != "waiting_for_more_voice":
-                    message = json.dumps({"mode": "onlone", "text": rec_result["text"]})
+                if "text" in rec_result and rec_result["text"] != -1:
+                    message = json.dumps({"mode": "online", "text": rec_result["text"]})
                     websocket.send_msg.put(message)  # 存入发送队列  直接调用send发送不了
         
         time.sleep(0.1)
