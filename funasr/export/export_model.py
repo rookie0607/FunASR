@@ -73,7 +73,7 @@ class ModelExporter:
 
     def export(self,
                tag_name: str = 'damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch',
-               mode: str = 'paraformer',
+               mode: str = None,
                ):
         
         model_dir = tag_name
