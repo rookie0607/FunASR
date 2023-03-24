@@ -21,7 +21,7 @@ parser.add_argument("--port",
                     help="grpc server port")
 parser.add_argument("--chunk_size",
                     type=int,
-                    default=300,
+                    default=50,
                     help="ms")
 
 args = parser.parse_args()
