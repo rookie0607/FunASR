@@ -28,6 +28,8 @@ class ASRServicer(paraformer_pb2_grpc.ASRServicer):
             except ImportError:
                 raise ImportError(f"Please install onnxruntime environment")
             self.inference_16k_pipeline = Paraformer(model_dir=onnx_dir)
+            from funasr_onnx.utils.frontend import load_bytes
+            self.load_bytes = load_bytes
         self.sample_rate = sample_rate
 
     def clear_states(self, user):
@@ -109,8 +111,8 @@ class ASRServicer(paraformer_pb2_grpc.ASRServicer):
                             else:
                                 asr_result = ""
                         elif self.backend == "onnxruntime":
-                            from rapid_paraformer.utils.frontend import load_bytes
-                            array = load_bytes(tmp_data)
+                            
+                            array = self.load_bytes(tmp_data)
                             asr_result = self.inference_16k_pipeline(array)[0]
                         end_time = int(round(time.time() * 1000))
                         delay_str = str(end_time - begin_time)

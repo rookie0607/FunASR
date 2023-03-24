@@ -1,4 +1,5 @@
 import asyncio
+import json
 import websockets
 import time
 from queue import Queue
@@ -10,6 +11,8 @@ from modelscope.utils.constant import Tasks
 from modelscope.utils.logger import get_logger
 import logging
 import tracemalloc
+import numpy as np
+
 tracemalloc.start()
 
 logger = get_logger(log_level=logging.CRITICAL)
@@ -50,7 +53,21 @@ parser.add_argument("--ngpu",
 args = parser.parse_args()
 
 print("model loading")
- 
+
+def load_bytes(input):
+    middle_data = np.frombuffer(input, dtype=np.int16)
+    middle_data = np.asarray(middle_data)
+    if middle_data.dtype.kind not in 'iu':
+        raise TypeError("'middle_data' must be an array of integers")
+    dtype = np.dtype('float32')
+    if dtype.kind != 'f':
+        raise TypeError("'dtype' must be a floating point type")
+
+    i = np.iinfo(middle_data.dtype)
+    abs_max = 2 ** (i.bits - 1)
+    offset = i.min + abs_max
+    array = np.frombuffer((middle_data.astype(dtype) - offset) / abs_max, dtype=np.float32)
+    return array
 
 # vad
 inference_pipeline_vad = pipeline(
@@ -84,6 +101,13 @@ if args.punc_model != "":
 else:
     inference_pipeline_punc = None
 
+
+inference_pipeline_asr_online = pipeline(
+    task=Tasks.auto_speech_recognition,
+    model='damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online',
+    model_revision='v1.0.2')
+
+
 print("model loaded")
 
 
@@ -91,6 +115,7 @@ print("model loaded")
 async def ws_serve(websocket, path):
     #speek = Queue()
     frames = []  # 存储所有的帧数据
+    frames_online = []  # 存储所有的帧数据
     buffer = []  # 存储缓存中的帧数据（最多两个片段）
     RECORD_NUM = 0
     global websocket_users
@@ -104,6 +129,11 @@ async def ws_serve(websocket, path):
     ss = threading.Thread(target=asr, args=(websocket,))
     ss.start()
     
+    websocket.param_dict_asr_online = {"cache": dict(), "is_final": False}
+    websocket.speek_online = Queue()  # websocket 添加进队列对象 让asr读取语音数据包
+    ss_online = threading.Thread(target=asr_online, args=(websocket,))
+    ss_online.start()
+    
     try:
         async for message in websocket:
             #voices.put(message)
@@ -115,18 +145,26 @@ async def ws_serve(websocket, path):
               
             if speech_start:
                 frames.append(message)
+                frames_online.append(message)
                 RECORD_NUM += 1
+                if RECORD_NUM % 6 == 0:
+                    audio_in = b"".join(frames_online)
+                    websocket.speek_online.put(audio_in)
+                    frames_online = []
+
             speech_start_i, speech_end_i = vad(message, websocket)
             #print(speech_start_i, speech_end_i)
             if speech_start_i:
                 speech_start = speech_start_i
                 frames = []
                 frames.extend(buffer)  # 把之前2个语音数据快加入
+                frames_online = []
             if speech_end_i or RECORD_NUM > 300:
                 speech_start = False
                 audio_in = b"".join(frames)
                 websocket.speek.put(audio_in)
                 frames = []  # 清空所有的帧数据
+                frames_online = []
                 buffer = []  # 清空缓存中的帧数据（最多两个片段）
                 RECORD_NUM = 0
             if not websocket.send_msg.empty():
@@ -144,7 +182,7 @@ async def ws_serve(websocket, path):
  
 
 def asr(websocket):  # ASR推理
-        global inference_pipeline2
+        global inference_pipeline_asr
         # global param_dict_punc
         global websocket_users
         while websocket in  websocket_users:
@@ -157,12 +195,35 @@ def asr(websocket):  # ASR推理
                         rec_result = inference_pipeline_punc(text_in=rec_result['text'], param_dict=websocket.param_dict_punc)
                     # print(rec_result)
                     if "text" in rec_result:
-                        websocket.send_msg.put(rec_result["text"]) # 存入发送队列  直接调用send发送不了
+                        message = json.dumps({"mode": "offline", "text": rec_result["text"]})
+                        websocket.send_msg.put(message)  # 存入发送队列  直接调用send发送不了
                
             time.sleep(0.1)
 
+
+def asr_online(websocket):  # ASR推理
+    global inference_pipeline_asr_online
+    # global param_dict_punc
+    global websocket_users
+    while websocket in websocket_users:
+        if not websocket.speek_online.empty():
+            audio_in = websocket.speek_online.get()
+            websocket.speek_online.task_done()
+            if len(audio_in) > 0:
+                # print(len(audio_in))
+                audio_in = load_bytes(audio_in)
+                # print(audio_in.shape)
+                rec_result = inference_pipeline_asr_online(audio_in=audio_in, param_dict=websocket.param_dict_asr_online)
+
+                # print(rec_result)
+                if "text" in rec_result and rec_result["text"] != "waiting_for_more_voice":
+                    message = json.dumps({"mode": "onlone", "text": rec_result["text"]})
+                    websocket.send_msg.put(message)  # 存入发送队列  直接调用send发送不了
+        
+        time.sleep(0.1)
+
 def vad(data, websocket):  # VAD推理
-    global vad_pipline, param_dict_vad
+    global inference_pipeline_vad, param_dict_vad
     #print(type(data))
     # print(param_dict_vad)
     segments_result = inference_pipeline_vad(audio_in=data, param_dict=websocket.param_dict_vad)
