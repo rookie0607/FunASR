@@ -43,7 +43,7 @@ parser.add_argument("--vad_model",
 
 parser.add_argument("--punc_model",
                     type=str,
-                    default="",
+                    default="damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727",
                     help="model from modelscope")
 parser.add_argument("--ngpu",
                     type=int,
