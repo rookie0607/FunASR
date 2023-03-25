@@ -7,7 +7,8 @@ import torch.nn as nn
 
 from funasr.export.utils.torch_function import MakePadMask
 from funasr.export.utils.torch_function import sequence_mask
-from funasr.models.encoder.sanm_encoder import SANMEncoder
+#from funasr.models.encoder.sanm_encoder import SANMEncoder as Encoder
+from funasr.punctuation.sanm_encoder import SANMEncoder
 from funasr.export.models.encoder.sanm_encoder import SANMEncoder as SANMEncoder_export
 from funasr.punctuation.abs_model import AbsPunctuation
 
@@ -19,7 +20,7 @@ class TargetDelayTransformer(nn.Module):
             model,
             max_seq_len=512,
             feats_dim=560,
-            model_name='model',
+            model_name='punc_model',
             **kwargs,
     ):
         super().__init__()
@@ -30,6 +31,7 @@ class TargetDelayTransformer(nn.Module):
         self.decoder = model.decoder
         self.model = model
         self.feats_dim = feats_dim
+        self.model_name = model_name
         import pdb;pdb.set_trace()
         if onnx:
             self.make_pad_mask = MakePadMask(max_seq_len, flip=False)

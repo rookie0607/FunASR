@@ -42,6 +42,7 @@ class ModelExporter:
 
         # export encoder1
         self.export_config["model_name"] = "model"
+        import pdb;pdb.set_trace()
         model = get_model(
             model,
             self.export_config,
