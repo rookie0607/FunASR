@@ -12,7 +12,7 @@ from funasr.export.models.encoder.sanm_encoder import SANMEncoder as SANMEncoder
 from funasr.punctuation.abs_model import AbsPunctuation
 
 
-class TargetDelayTransformer(AbsPunctuation):
+class TargetDelayTransformer(nn.Module):
 
     def __init__(
             self,
@@ -30,7 +30,7 @@ class TargetDelayTransformer(AbsPunctuation):
         self.decoder = model.decoder
         self.model = model
         self.feats_dim = feats_dim
-        self._output_size = model._output_size
+        import pdb;pdb.set_trace()
         if onnx:
             self.make_pad_mask = MakePadMask(max_seq_len, flip=False)
         else:
